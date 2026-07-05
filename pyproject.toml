@@ -1,0 +1,14 @@
+[project]
+name = "cosmos-vla-drone"
+version = "0.1.0"
+description = "Cosmos-enhanced VLA drone agent in Isaac Sim"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy",
+    "pydantic>=2.0",
+    "pytest",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
