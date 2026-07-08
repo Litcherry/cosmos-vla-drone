@@ -1,0 +1,118 @@
+"""Lightweight mock environment used before Isaac Sim integration."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Any
+
+import numpy as np
+
+from cosmos_vla_drone.baseline.safety import assert_plan_safe
+
+
+DEFAULT_TARGETS = {
+    "red": np.array([1.5, 0.8, 0.0], dtype=float),
+    "blue": np.array([-1.4, 1.0, 0.0], dtype=float),
+    "green": np.array([0.4, -1.6, 0.0], dtype=float),
+}
+
+
+@dataclass
+class MockDroneState:
+    """Simple drone state for baseline execution."""
+
+    position: np.ndarray = field(default_factory=lambda: np.array([0.0, 0.0, 0.0], dtype=float))
+    airborne: bool = False
+    last_target: str | None = None
+
+
+@dataclass
+class MockExecutionResult:
+    """Result of executing a validated action sequence in the mock environment."""
+
+    success: bool
+    final_position: tuple[float, float, float]
+    events: list[dict[str, Any]]
+    failure_reason: str = ""
+
+
+class MockDroneEnvironment:
+    """A deterministic mock drone environment with colored targets."""
+
+    def __init__(self, targets: dict[str, np.ndarray] | None = None) -> None:
+        self.targets = targets if targets is not None else DEFAULT_TARGETS
+        self.state = MockDroneState()
+
+    def reset(self) -> MockDroneState:
+        """Reset the drone to its initial state."""
+
+        self.state = MockDroneState()
+        return self.state
+
+    def execute_plan(self, actions: list[dict[str, Any]]) -> MockExecutionResult:
+        """Execute a validated action sequence."""
+
+        try:
+            assert_plan_safe(actions)
+            events: list[dict[str, Any]] = []
+
+            for action in actions:
+                event = self._execute_action(action)
+                events.append(event)
+
+            return MockExecutionResult(
+                success=True,
+                final_position=tuple(float(value) for value in self.state.position),
+                events=events,
+            )
+        except Exception as exc:
+            return MockExecutionResult(
+                success=False,
+                final_position=tuple(float(value) for value in self.state.position),
+                events=[],
+                failure_reason=type(exc).__name__ + ":" + str(exc),
+            )
+
+    def _execute_action(self, action: dict[str, Any]) -> dict[str, Any]:
+        action_name = action["action"]
+
+        if action_name == "takeoff":
+            self.state.position[2] = float(action["altitude"])
+            self.state.airborne = True
+
+        elif action_name == "search":
+            target = action["target"]
+            if target not in self.targets:
+                raise ValueError(f"target not found: {target}")
+            self.state.last_target = target
+
+        elif action_name == "move_to":
+            self.state.position = np.array(action["position"], dtype=float)
+
+        elif action_name == "move_above":
+            target = action["target"]
+            if target not in self.targets:
+                raise ValueError(f"target not found: {target}")
+            target_position = self.targets[target]
+            self.state.position = np.array(
+                [target_position[0], target_position[1], float(action["height"])],
+                dtype=float,
+            )
+            self.state.last_target = target
+
+        elif action_name == "hover":
+            pass
+
+        elif action_name == "land":
+            self.state.position[2] = 0.0
+            self.state.airborne = False
+
+        else:
+            raise ValueError(f"unsupported action: {action_name}")
+
+        return {
+            "action": action_name,
+            "position": tuple(float(value) for value in self.state.position),
+            "airborne": self.state.airborne,
+            "last_target": self.state.last_target,
+        }
