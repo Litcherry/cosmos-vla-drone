@@ -53,15 +53,6 @@
 - 尝试 reinforcement learning 或后训练。
 - 设计对比实验，分析 Cosmos 和记忆系统对任务完成率的影响。
 
-## GitHub 开发要求
-
-- 从空仓库开始开发。
-- 每个开发日至少 2 个有效 commit。
-- 总 commit 数不少于 10。
-- commit message 必须具体，不能只写 `update`、`fix`、`final`。
-- 至少提交 2 个 pull request，可以自己 merge。
-- 每个开发日在 `docs/dev_log.md` 中记录 progress log。
-
 ## 当前开发原则
 
 - 不把模型权重、训练 checkpoint、视频输出和大型仿真缓存提交到 GitHub。
