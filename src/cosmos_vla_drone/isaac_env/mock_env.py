@@ -16,6 +16,10 @@ DEFAULT_TARGETS = {
     "green": np.array([0.4, -1.6, 0.0], dtype=float),
 }
 
+def _position_tuple(position: np.ndarray) -> tuple[float, float, float]:
+    """Convert a numpy position vector to a fixed-size 3D tuple."""
+
+    return (float(position[0]), float(position[1]), float(position[2]))
 
 @dataclass
 class MockDroneState:
@@ -62,13 +66,13 @@ class MockDroneEnvironment:
 
             return MockExecutionResult(
                 success=True,
-                final_position=tuple(float(value) for value in self.state.position),
+                final_position=_position_tuple(self.state.position),
                 events=events,
             )
         except Exception as exc:
             return MockExecutionResult(
                 success=False,
-                final_position=tuple(float(value) for value in self.state.position),
+                final_position=_position_tuple(self.state.position),
                 events=[],
                 failure_reason=type(exc).__name__ + ":" + str(exc),
             )
@@ -112,7 +116,7 @@ class MockDroneEnvironment:
 
         return {
             "action": action_name,
-            "position": tuple(float(value) for value in self.state.position),
+            "position": _position_tuple(self.state.position),
             "airborne": self.state.airborne,
             "last_target": self.state.last_target,
         }
