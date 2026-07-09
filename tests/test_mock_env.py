@@ -10,8 +10,8 @@ def test_mock_env_executes_baseline_plan():
     result = env.execute_plan(plan.actions)
 
     assert result.success is True
-    assert result.final_position == (1.5, 0.8, 0.0)
-    assert [event["action"] for event in result.events] == [
+    assert result.final_observation.position == (1.5, 0.8, 0.0)
+    assert [event.action for event in result.events] == [
         "takeoff",
         "search",
         "move_above",

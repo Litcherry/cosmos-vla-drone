@@ -8,6 +8,11 @@ from typing import Any
 import numpy as np
 
 from cosmos_vla_drone.baseline.safety import assert_plan_safe
+from cosmos_vla_drone.isaac_env.interfaces import (
+    DroneObservation,
+    EnvironmentEvent,
+    EnvironmentResult,
+)
 
 
 DEFAULT_TARGETS = {
@@ -16,10 +21,12 @@ DEFAULT_TARGETS = {
     "green": np.array([0.4, -1.6, 0.0], dtype=float),
 }
 
+
 def _position_tuple(position: np.ndarray) -> tuple[float, float, float]:
     """Convert a numpy position vector to a fixed-size 3D tuple."""
 
     return (float(position[0]), float(position[1]), float(position[2]))
+
 
 @dataclass
 class MockDroneState:
@@ -30,16 +37,6 @@ class MockDroneState:
     last_target: str | None = None
 
 
-@dataclass
-class MockExecutionResult:
-    """Result of executing a validated action sequence in the mock environment."""
-
-    success: bool
-    final_position: tuple[float, float, float]
-    events: list[dict[str, Any]]
-    failure_reason: str = ""
-
-
 class MockDroneEnvironment:
     """A deterministic mock drone environment with colored targets."""
 
@@ -47,37 +44,37 @@ class MockDroneEnvironment:
         self.targets = targets if targets is not None else DEFAULT_TARGETS
         self.state = MockDroneState()
 
-    def reset(self) -> MockDroneState:
+    def reset(self) -> DroneObservation:
         """Reset the drone to its initial state."""
 
         self.state = MockDroneState()
-        return self.state
+        return self._observation()
 
-    def execute_plan(self, actions: list[dict[str, Any]]) -> MockExecutionResult:
+    def execute_plan(self, actions: list[dict[str, Any]]) -> EnvironmentResult:
         """Execute a validated action sequence."""
 
         try:
             assert_plan_safe(actions)
-            events: list[dict[str, Any]] = []
+            events: list[EnvironmentEvent] = []
 
             for action in actions:
                 event = self._execute_action(action)
                 events.append(event)
 
-            return MockExecutionResult(
+            return EnvironmentResult(
                 success=True,
-                final_position=_position_tuple(self.state.position),
+                final_observation=self._observation(),
                 events=events,
             )
         except Exception as exc:
-            return MockExecutionResult(
+            return EnvironmentResult(
                 success=False,
-                final_position=_position_tuple(self.state.position),
+                final_observation=self._observation(),
                 events=[],
                 failure_reason=type(exc).__name__ + ":" + str(exc),
             )
 
-    def _execute_action(self, action: dict[str, Any]) -> dict[str, Any]:
+    def _execute_action(self, action: dict[str, Any]) -> EnvironmentEvent:
         action_name = action["action"]
 
         if action_name == "takeoff":
@@ -114,9 +111,16 @@ class MockDroneEnvironment:
         else:
             raise ValueError(f"unsupported action: {action_name}")
 
-        return {
-            "action": action_name,
-            "position": _position_tuple(self.state.position),
-            "airborne": self.state.airborne,
-            "last_target": self.state.last_target,
-        }
+        return EnvironmentEvent(
+            action=action_name,
+            position=_position_tuple(self.state.position),
+            airborne=self.state.airborne,
+            last_target=self.state.last_target,
+        )
+
+    def _observation(self) -> DroneObservation:
+        return DroneObservation(
+            position=_position_tuple(self.state.position),
+            airborne=self.state.airborne,
+            last_target=self.state.last_target,
+        )
