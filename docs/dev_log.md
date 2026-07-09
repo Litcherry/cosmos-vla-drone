@@ -51,6 +51,136 @@
 
 ## 2026-07-09
 
+### 今日目标
+
+- [x] 在远程 RTX 4090 服务器上配置项目运行环境。
+- [x] 安装并验证 Isaac Sim Python 环境。
+- [x] 运行 Isaac Sim headless smoke test。
+- [x] 排查服务器上的 conda、Vulkan 和 Isaac Sim 启动问题。
+
+### 完成情况
+
+- 租用 AutoDL RTX 4090 服务器，配置为 Ubuntu 22.04、RTX 4090 24GB、Python 3.10、CUDA 12.2 driver runtime。
+- 将项目 clone 到服务器数据盘 `/root/autodl-tmp/projects/cosmos-vla-drone`。
+- 创建项目开发环境 `/root/autodl-tmp/conda-envs/cosmos-vla-drone`，并通过项目测试。
+- 创建 Isaac Sim 专用环境 `/root/autodl-tmp/conda-envs/isaacsim`，使用 Python 3.12。
+- 成功安装 `isaacsim==6.0.1.0`。
+- 成功运行 Isaac Sim headless smoke test：
+  - 启动 `SimulationApp`
+  - 创建 `World`
+  - 添加 default ground plane
+  - 执行 simulation step
+  - 正常关闭 Isaac Sim
+- 将 Isaac Sim smoke test 整理为项目脚本 `scripts/isaac_smoke_test.py`，方便后续服务器复现。
+
 ### 遇到的问题
 
+#### 1. Pylance 语法检查报错
+
 Pylance 语法检查报错，接口函数未写函数体报错，函数后加`...`,防止语法报错 
+
+#### 2. 服务器驱动版本过低
+
+当前 NVIDIA driver 版本低于 Isaac Sim RTX 推荐要求：当前租的服务器驱动 **535.129.03 太旧**（saac Sim / Omniverse RTX 官方最低要求 550.90.07
+
+报错信息：
+
+```
+R550 Omniverse RTX driver requirement on Linux
+Installed driver: 535.129.03
+The unsupported driver range: [0.00, 550.90.07)
+rtx driver verification failed
+```
+
+当前可以做：
+- headless SimulationApp smoke test
+- World 创建
+- ground plane
+- 基础 physics / API 探索
+
+后面可能受影响：
+- RTX 渲染
+- RGB camera
+- depth camera
+- synthetic data
+- 高质量视觉输出
+
+#### 3. conda activate 在远程终端中不可用
+
+远程服务器在新开的终端一开始执行：
+
+```bash
+conda activate /root/autodl-tmp/conda-envs/isaacsim
+```
+
+会报错：
+
+```bash
+CommandNotFoundError: Your shell has not been properly configured to use 'conda activate'.
+```
+
+原因是当前 shell 没有加载 conda 的初始化脚本。
+
+临时解决方法：
+
+```bash
+source /root/miniconda3/etc/profile.d/conda.sh
+conda activate /root/autodl-tmp/conda-envs/isaacsim
+```
+
+永久解决方法：
+
+```bash
+/root/miniconda3/bin/conda init bash
+source ~/.bashrc
+```
+
+之后新开的远程终端就可以直接使用 `conda activate`。
+
+#### 2. Isaac Sim 一开始出现 Vulkan / RTX 初始化错误
+
+第一次运行 Isaac Sim 时出现过类似错误：
+
+```bash
+VkResult: ERROR_INCOMPATIBLE_DRIVER
+vkCreateInstance failed
+Failed to create any GPU devices
+GPU Foundation is not initialized
+```
+
+排查后发现，系统默认的 Vulkan ICD 目录 `/usr/share/vulkan/icd.d` 中没有 NVIDIA ICD，只包含 Intel、Radeon、llvmpipe 等 ICD。Isaac Sim 没有显式使用 NVIDIA Vulkan ICD，导致 RTX/Vulkan 初始化失败。
+
+通过查找 NVIDIA ICD：
+
+```
+find / -name "*nvidia*icd*.json" 2>/dev/null
+```
+
+找到：
+
+```
+/etc/vulkan/icd.d/nvidia_icd.json
+```
+
+之后设置：
+
+```
+export VK_ICD_FILENAMES=/etc/vulkan/icd.d/nvidia_icd.json
+```
+
+再运行：
+
+```
+vulkaninfo --summary
+```
+
+确认 Vulkan 只使用 NVIDIA RTX 4090。之后 Isaac Sim smoke test 可以正常执行。
+
+### 今日收获
+
+- 明确了项目开发环境和 Isaac Sim 环境需要分开管理：
+  - `/root/autodl-tmp/conda-envs/cosmos-vla-drone`：项目开发、测试、普通 Python 代码。
+  - `/root/autodl-tmp/conda-envs/isaacsim`：Isaac Sim 运行环境。
+- 明确了 Isaac Sim 不只是需要 CUDA 可见，还需要 Vulkan / RTX 渲染栈正确配置。
+- 学会了通过 `VK_ICD_FILENAMES` 强制 Vulkan 使用 NVIDIA ICD。
+- 完成了服务器端 Isaac Sim 最小 smoke test，为后续真实场景构建打下基础。
