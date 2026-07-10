@@ -15,7 +15,6 @@ checkpoints/
 logs/
 *.mp4
 *.gif
-*.png
 *.jpg
 
 # Data / model artifacts

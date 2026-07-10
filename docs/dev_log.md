@@ -53,10 +53,11 @@
 
 ### 今日目标
 
-- [x] 在远程 RTX 4090 服务器上配置项目运行环境。
-- [x] 安装并验证 Isaac Sim Python 环境。
-- [x] 运行 Isaac Sim headless smoke test。
-- [x] 排查服务器上的 conda、Vulkan 和 Isaac Sim 启动问题。
+- [x] 本地 baseline + mock env 最小闭环
+- [x] Isaac Sim 接口层、scene config、scene builder
+- [x] 远程 4090 服务器 Isaac Sim 安装
+- [x] Isaac Sim headless smoke test 通过
+- [x] 解决 AutoDL 上 Vulkan ICD 选择问题
 
 ### 完成情况
 
@@ -81,7 +82,7 @@ Pylance 语法检查报错，接口函数未写函数体报错，函数后加`..
 
 #### 2. 服务器驱动版本过低
 
-当前 NVIDIA driver 版本低于 Isaac Sim RTX 推荐要求：当前租的服务器驱动 **535.129.03 太旧**（saac Sim / Omniverse RTX 官方最低要求 550.90.07
+当前 NVIDIA driver 版本低于 Isaac Sim RTX 推荐要求：当前租的服务器驱动 **535.129.03 太旧**（saac Sim / Omniverse RTX 官方最低要求 550.90.07【⭐下次换服务器时重点解决】
 
 报错信息：
 
@@ -184,3 +185,31 @@ vulkaninfo --summary
 - 明确了 Isaac Sim 不只是需要 CUDA 可见，还需要 Vulkan / RTX 渲染栈正确配置。
 - 学会了通过 `VK_ICD_FILENAMES` 强制 Vulkan 使用 NVIDIA ICD。
 - 完成了服务器端 Isaac Sim 最小 smoke test，为后续真实场景构建打下基础。
+
+## 2026-07-10
+
+### 今日目标
+
+- [x] 在 Isaac Sim 里构建真实场景，包括地面、墙壁、无人机、不同颜色的目标。
+
+- [x] 寻找支持 Isaac Sim Vulkan/RTX 渲染的远程服务器。
+- [x] 验证 Isaac Sim 基础仿真、场景构建和相机 RGB 输出。
+- [x] 跑通从场景到视频保存与动作记录输出的最小视觉闭环。
+
+![c30ac95e29aa803454fb3d4dcb125412](assets/c30ac95e29aa803454fb3d4dcb125412.png)
+
+### 遇到的问题
+
+- 之前在 AutoDL 上租的服务器均不支持 Isaac Sim Vulkan/RTX 渲染，改为使用 gupfree 服务器
+
+### 完成情况
+
+- 成功运行 `isaac_smoke_test.py`，完成 Isaac Sim 启动、World 创建和物理步进。
+- 成功运行 `isaac_create_scene_from_config.py --scene maze`，完成目标物体和墙体场景构建。
+- 成功运行 `isaac_camera_smoke_test.py`，保存 RGB 图像到 `outputs/isaac/camera_smoke.png`。
+- 成功运行 `isaac_animate_baseline_plan_with_trace.py`，在 Isacc Sim 上播放可展示无人机飞到蓝色目标悬停并降落的视频及轨迹。
+
+### 学到的东西
+
+- 服务器能够支持 Isaac Sim 要注意满足：GPU型号 RTX4090以上，GPU驱动>=550.xx.x，Vulkan 是否识别 NVIDIA GPU（RGB camera / Replicator / synthetic data 依赖 RTX/Vulkan 渲染栈）
+
