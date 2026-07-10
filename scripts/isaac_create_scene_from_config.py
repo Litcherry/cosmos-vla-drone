@@ -60,7 +60,6 @@ def main() -> int:
         from pxr import Gf, UsdGeom  # type: ignore[import-not-found]
 
         from cosmos_vla_drone.isaac_env.scene_config import (
-            SceneConfig,
             create_default_scene_config,
             create_maze_scene_config,
         )
